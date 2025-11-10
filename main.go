@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"image/color"
 	"image/jpeg"
 	"io"
 	"os"
@@ -16,10 +17,7 @@ import (
 )
 
 type Pixel struct {
-	R int
-	G int
-	B int
-	A int
+	R, G, B, A int
 }
 
 type ImageProcessor struct {
@@ -49,6 +47,11 @@ func readImage(filepath string) [][]Pixel {
 	return pixels
 }
 
+func writeImage(img image.Image) {
+	f, _ := os.Create("new_images/obaa_image.png")
+	jpeg.Encode(f, img, nil)
+}
+
 func getPixels(file io.Reader) ([][]Pixel, error) {
 	img, _, err := image.Decode(file)
 
@@ -71,9 +74,34 @@ func getPixels(file io.Reader) ([][]Pixel, error) {
 	return pixels, nil
 }
 
+func getImageFromPixels(pixels [][]Pixel) image.Image {
+	width := len(pixels[0])
+	height := len(pixels)
+
+	img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{width, height}})
+
+	for y := range height {
+		for x := range width {
+			c := pixelToColour(pixels[y][x])
+			img.Set(x, y, c)
+		}
+	}
+
+	return img
+}
+
 // img.At(x, y).RGBA() returns four uint32 values; we want a Pixel
 func rgbaToPixel(r uint32, g uint32, b uint32, a uint32) Pixel {
 	return Pixel{int(r / 257), int(g / 257), int(b / 257), int(a / 257)}
+}
+
+func pixelToColour(pixel Pixel) color.RGBA64 {
+	return color.RGBA64{
+		uint16(pixel.R * 257),
+		uint16(pixel.G * 257),
+		uint16(pixel.B * 257),
+		uint16(pixel.A * 257),
+	}
 }
 
 func increasePixelBrightness(pixel *Pixel, value float32) {
@@ -120,11 +148,10 @@ func Ulimit() int64 {
 
 func main() {
 	image := readImage("images/obaa_image.jpg")
-	fmt.Println("0,0 pixel value before:", image[0][0])
 	ip := &ImageProcessor{
 		pixelMap: image,
 		lock:     semaphore.NewWeighted(Ulimit()),
 	}
-	ip.increaseImageBrightness(1.1)
-	fmt.Println("0,0 pixel value after:", ip.pixelMap[0][0])
+	ip.increaseImageBrightness(1.25)
+	writeImage(getImageFromPixels(ip.pixelMap))
 }
