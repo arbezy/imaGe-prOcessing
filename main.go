@@ -116,8 +116,6 @@ func (ip *ImageProcessor) increaseImageBrightness(value float32) {
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
 
-	fmt.Printf("increasing image brightness by %.0f", (value-1)*100)
-
 	for i := 0; i < len(ip.pixelMap); i++ {
 		for j := 0; j < len(ip.pixelMap[0]); j++ {
 			wg.Add(1)
@@ -151,16 +149,23 @@ func Ulimit() int64 {
 // ----------- CLI -----------
 
 func parseFlags() (string, int, string) {
-	adjustType := flag.String("adjustType", "brightness", "Type of adjustment to make to image. (brightness / contrast)")
-	adjustAmount := flag.Int("adjustAmount", 25, "Int value for percent of adjustment to make to image. i.e. 25(%)")
-	filepath := flag.String("filepath", "images/obaa_image.jpg", "Filepath to the image to adjust.")
 	flag.Parse()
 
-	fmt.Printf("adjustment type = %s!\n", *adjustType)
-	fmt.Printf("adjustment amount = %d%%!\n", *adjustAmount)
-	fmt.Printf("filepath = %s!\n\n", *filepath)
+	adjustType := flag.Arg(0)
+	adjustAmountStr := flag.Arg(1)
+	filepath := flag.Arg(2)
 
-	return *adjustType, *adjustAmount, *filepath
+	adjustAmount, err := strconv.Atoi(adjustAmountStr)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("adjustment type = %s!\n", adjustType)
+	fmt.Printf("adjustment amount = %d%%!\n", adjustAmount)
+	fmt.Printf("image = %s!\n\n", filepath)
+
+	return adjustType, adjustAmount, filepath
+
 }
 
 func main() {
