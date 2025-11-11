@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -16,6 +17,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+// ----------- IMAGE PROCESSING -----------
 type Pixel struct {
 	R, G, B, A int
 }
@@ -114,7 +116,7 @@ func (ip *ImageProcessor) increaseImageBrightness(value float32) {
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
 
-	fmt.Println("increasing image brightness")
+	fmt.Printf("increasing image brightness by %.0f", (value-1)*100)
 
 	for i := 0; i < len(ip.pixelMap); i++ {
 		for j := 0; j < len(ip.pixelMap[0]); j++ {
@@ -146,12 +148,46 @@ func Ulimit() int64 {
 	return i
 }
 
+// ----------- CLI -----------
+
+func parseFlags() (string, int, string) {
+	adjustType := flag.String("adjustType", "brightness", "Type of adjustment to make to image. (brightness / contrast)")
+	adjustAmount := flag.Int("adjustAmount", 25, "Int value for percent of adjustment to make to image. i.e. 25(%)")
+	filepath := flag.String("filepath", "images/obaa_image.jpg", "Filepath to the image to adjust.")
+	flag.Parse()
+
+	fmt.Printf("adjustment type = %s!\n", *adjustType)
+	fmt.Printf("adjustment amount = %d%%!\n", *adjustAmount)
+	fmt.Printf("filepath = %s!\n\n", *filepath)
+
+	return *adjustType, *adjustAmount, *filepath
+}
+
 func main() {
-	image := readImage("images/obaa_image.jpg")
+	flag.Usage = func() {
+		fmt.Printf("Usage: %s <adjustType> <adjustAmount> <pathToImage>\nDefaults:\n", os.Args[0])
+		flag.PrintDefaults()
+	}
+
+	atype, amount, filepath := parseFlags()
+
+	image := readImage(filepath)
 	ip := &ImageProcessor{
 		pixelMap: image,
 		lock:     semaphore.NewWeighted(Ulimit()),
 	}
-	ip.increaseImageBrightness(1.25)
+
+	adjAmount := 1 + float32(amount)/100
+	switch atype {
+	case "brightness":
+		ip.increaseImageBrightness(adjAmount)
+	case "contrast":
+		fmt.Println("CONTRAST NOT IMPLEMENTED YET")
+		os.Exit(1)
+	default:
+		fmt.Println("Not a valid adjustment type. Try \"brightness\" or \"contrast\".")
+		os.Exit(1)
+	}
+
 	writeImage(getImageFromPixels(ip.pixelMap))
 }
