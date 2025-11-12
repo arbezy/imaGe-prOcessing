@@ -106,13 +106,25 @@ func pixelToColour(pixel Pixel) color.RGBA64 {
 	}
 }
 
-func increasePixelBrightness(pixel *Pixel, value float32) {
+func adjustPixelBrightness(pixel *Pixel, value float32) {
 	pixel.R = min(255, int(float32(pixel.R)*value))
 	pixel.G = min(255, int(float32(pixel.G)*value))
 	pixel.B = min(255, int(float32(pixel.B)*value))
 }
 
-func (ip *ImageProcessor) increaseImageBrightness(value float32) {
+func adjustPixelContrast(pixel *Pixel, value float32) {
+	contrast := value * 255
+	factor := (259 * (contrast + 255)) / (255 * (259 - contrast))
+	pixel.R = truncate(int(factor*(float32(pixel.R)-128) + 128))
+	pixel.G = truncate(int(factor*(float32(pixel.G)-128) + 128))
+	pixel.B = truncate(int(factor*(float32(pixel.B)-128) + 128))
+}
+
+func truncate(value int) int {
+	return min(255, max(0, value))
+}
+
+func (ip *ImageProcessor) adjustImageBrightness(value float32) {
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
 
@@ -124,7 +136,25 @@ func (ip *ImageProcessor) increaseImageBrightness(value float32) {
 			go func(pixel *Pixel) {
 				defer ip.lock.Release(1)
 				defer wg.Done()
-				increasePixelBrightness(pixel, value)
+				adjustPixelBrightness(pixel, value)
+			}(&ip.pixelMap[i][j])
+		}
+	}
+}
+
+func (ip *ImageProcessor) adjustImageContrast(value float32) {
+	wg := sync.WaitGroup{}
+	defer wg.Wait()
+
+	for i := 0; i < len(ip.pixelMap); i++ {
+		for j := 0; j < len(ip.pixelMap[0]); j++ {
+			wg.Add(1)
+			ip.lock.Acquire(context.TODO(), 1)
+
+			go func(pixel *Pixel) {
+				defer ip.lock.Release(1)
+				defer wg.Done()
+				adjustPixelContrast(pixel, value)
 			}(&ip.pixelMap[i][j])
 		}
 	}
@@ -147,9 +177,10 @@ func Ulimit() int64 {
 }
 
 // ----------- CLI -----------
-
 func parseFlags() (string, int, string) {
 	flag.Parse()
+
+	// TODO: add default value if arg isnt present?
 
 	adjustType := flag.Arg(0)
 	adjustAmountStr := flag.Arg(1)
@@ -182,13 +213,12 @@ func main() {
 		lock:     semaphore.NewWeighted(Ulimit()),
 	}
 
-	adjAmount := 1 + float32(amount)/100
+	adjAmount := float32(amount) / 100
 	switch atype {
 	case "brightness":
-		ip.increaseImageBrightness(adjAmount)
+		ip.adjustImageBrightness(1 + adjAmount)
 	case "contrast":
-		fmt.Println("CONTRAST NOT IMPLEMENTED YET")
-		os.Exit(1)
+		ip.adjustImageContrast(adjAmount)
 	default:
 		fmt.Println("Not a valid adjustment type. Try \"brightness\" or \"contrast\".")
 		os.Exit(1)
