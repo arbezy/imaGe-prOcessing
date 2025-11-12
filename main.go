@@ -180,8 +180,6 @@ func Ulimit() int64 {
 func parseFlags() (string, int, string) {
 	flag.Parse()
 
-	// TODO: add default value if arg isnt present?
-
 	adjustType := flag.Arg(0)
 	adjustAmountStr := flag.Arg(1)
 	filepath := flag.Arg(2)
