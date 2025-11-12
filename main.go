@@ -52,6 +52,7 @@ func readImage(filepath string) [][]Pixel {
 func writeImage(img image.Image) {
 	f, _ := os.Create("new_images/obaa_image.png")
 	jpeg.Encode(f, img, nil)
+	fmt.Println("new image created !")
 }
 
 func getPixels(file io.Reader) ([][]Pixel, error) {
@@ -142,6 +143,7 @@ func (ip *ImageProcessor) adjustImageBrightness(value float32) {
 	}
 }
 
+// TODO: maybe combine this function with adjustImageContrast
 func (ip *ImageProcessor) adjustImageContrast(value float32) {
 	wg := sync.WaitGroup{}
 	defer wg.Wait()
@@ -177,7 +179,7 @@ func Ulimit() int64 {
 }
 
 // ----------- CLI -----------
-func parseFlags() (string, int, string) {
+func parseArgs() (string, int, string) {
 	flag.Parse()
 
 	adjustType := flag.Arg(0)
@@ -194,7 +196,6 @@ func parseFlags() (string, int, string) {
 	fmt.Printf("image = %s!\n\n", filepath)
 
 	return adjustType, adjustAmount, filepath
-
 }
 
 func main() {
@@ -203,7 +204,7 @@ func main() {
 		flag.PrintDefaults()
 	}
 
-	atype, amount, filepath := parseFlags()
+	atype, amount, filepath := parseArgs()
 
 	image := readImage(filepath)
 	ip := &ImageProcessor{
